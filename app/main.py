@@ -6,10 +6,14 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.core.database import create_db_and_tables
-from app.admin import admin_router
+from app.core.database import create_db_and_tables, engine, get_async_session
+from app.core.redis import redis_client
 from app.api import api_router
+from app.scripts.init_data import init_data
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 # 生命周期管理
 @asynccontextmanager
@@ -17,9 +21,29 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     create_db_and_tables()
+
+    # 初始化数据
+    async with get_async_session() as db:
+        await init_data(db)
+
     yield
+
     # 关闭时执行
-    pass
+    logger.info("应用程序正在关闭，执行清理操作...")
+
+    # 关闭数据库连接池
+    try:
+        engine.dispose()
+        logger.info("数据库连接池已关闭")
+    except Exception as e:
+        logger.error(f"关闭数据库连接池时出错: {e}")
+
+    # 关闭Redis连接
+    try:
+        redis_client.close()
+        logger.info("Redis连接已关闭")
+    except Exception as e:
+        logger.error(f"关闭Redis连接时出错: {e}")
 
 
 # 创建FastAPI应用
@@ -43,7 +67,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 注册路由
 app.include_router(api_router)
-app.include_router(admin_router, prefix=settings.ADMIN_PREFIX)
 
 # 前端入口路由
 @app.get("/")

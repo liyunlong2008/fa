@@ -14,7 +14,7 @@ from app.models.rbac import User, Role, UserRole, Permission, RolePermission
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2密码Bearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.ADMIN_PREFIX}/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 # 验证密码
 def verify_password(plain_password: str, hashed_password: str) -> bool:
